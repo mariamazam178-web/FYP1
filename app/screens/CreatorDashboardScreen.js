@@ -122,8 +122,6 @@ const CreatorDashboardScreen = () => {
         return false;
       }
 
-      // ✅ FIXED: Don't auto-award here - award only happens in InterestAndHobbiesScreen
-      // This prevents double awarding when clicking + sign
       console.log('✅ Profile complete, allowing survey creation');
       
       return true;
@@ -303,7 +301,7 @@ const CreatorDashboardScreen = () => {
         <View style={styles.headerContent}>
           <View style={styles.headerTextContainer}>
             <Text style={styles.welcomeText}>
-              Welcome, {userName} 👋
+              Welcome, {userName}
             </Text>
             <Text style={styles.headerSubtitle}>
               Design and Manage your surveys
@@ -316,28 +314,16 @@ const CreatorDashboardScreen = () => {
               size={35}
               color="#fff"
             />
+            
+            <TouchableOpacity 
+              style={styles.walletButton}
+              onPress={handleNavigateToWallet}
+            >
+              <MaterialIcons name="account-balance-wallet" size={18} color="#FF7800" />
+              <Text style={styles.walletText}>Rs {walletBalance}</Text>
+            </TouchableOpacity>
           </View>
         </View>
-        
-        <TouchableOpacity 
-          style={styles.walletButton}
-          onPress={handleNavigateToWallet}
-        >
-          <MaterialIcons name="account-balance-wallet" size={18} color="#FF7800" />
-          <Text style={styles.walletText}>Rs {walletBalance}</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.refreshButton}
-          onPress={refreshData}
-          disabled={refreshing}
-        >
-          {refreshing ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <MaterialIcons name="refresh" size={24} color="#fff" />
-          )}
-        </TouchableOpacity>
       </LinearGradient>
 
       {message ? (
@@ -522,7 +508,7 @@ const styles = StyleSheet.create({
   header: {
     paddingTop: 50,
     paddingHorizontal: 20,
-    paddingBottom: 50,
+    paddingBottom: 30,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     elevation: 5,
@@ -530,14 +516,16 @@ const styles = StyleSheet.create({
   headerContent: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
   },
   headerTextContainer: {
     flex: 1,
     marginRight: 10,
   },
   headerIconContainer: {
-    padding: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 5,
   },
   welcomeText: {
     fontSize: 28,
@@ -550,9 +538,6 @@ const styles = StyleSheet.create({
     color: "rgba(255, 255, 255, 0.9)",
   },
   walletButton: {
-    position: 'absolute',
-    left: 20,
-    top: 60,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
@@ -560,18 +545,13 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
     elevation: 3,
+    marginTop: 10,
   },
   walletText: {
     fontSize: 14,
     fontWeight: 'bold',
     color: '#FF7800',
     marginLeft: 5,
-  },
-  refreshButton: {
-    position: 'absolute',
-    right: 20,
-    top: 60,
-    padding: 5,
   },
   messageBanner: {
     backgroundColor: '#E8F5E9',

@@ -17,10 +17,8 @@ import * as Linking from 'expo-linking';
 import { Ionicons } from '@expo/vector-icons'; 
 
 import AskendLogo from "../../assets/images/logo.png"; 
-
 import { supabase } from '../../supabaseClient'; 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../config'; 
-
 
 const GET_USER_API_ENDPOINT = `${SUPABASE_URL}/auth/v1/user`; 
 const LOGIN_API_ENDPOINT = `${SUPABASE_URL}/auth/v1/token?grant_type=password`;
@@ -33,9 +31,7 @@ const SignInScreen = ({ navigation }) => {
     const [isManualLoading, setIsManualLoading] = useState(false);
     const [keepLoggedIn, setKeepLoggedIn] = useState(false);
 
-    // ----------------------------------------------------
-    // ✅ DEEP LINK VERIFICATION (The Corrected Logic)
-    // ----------------------------------------------------
+    // Deep Link Verification
     useEffect(() => {
         const handleDeepLinkVerification = async () => {
             setIsVerifyingLink(true);
@@ -49,8 +45,6 @@ const SignInScreen = ({ navigation }) => {
 
                 if (accessToken && (type === 'signup' || type === 'recovery')) { 
                     try {
-                        // --- IMPORTANT: Set Session using Supabase Client First ---
-                        // We must set the session first to validate the tokens and use Supabase client
                         const { data: sessionData, error: setSessionError } = await supabase.auth.setSession({
                             access_token: accessToken,
                             refresh_token: refreshToken,
@@ -60,33 +54,25 @@ const SignInScreen = ({ navigation }) => {
                             console.error("Deep Link Set Session Failed:", setSessionError.message);
                             Alert.alert("Error", "Session verification failed. Please try the link again.");
                             setIsVerifyingLink(false);
-                            return; // Stop processing
+                            return;
                         } 
                         
-                        // Store the session for persistence
                         await AsyncStorage.setItem('@supabase_session', JSON.stringify(sessionData.session));
                         
-                        
-                        // ⭐ CRITICAL FIX: IF RECOVERY, GO TO PASSWORD UPDATE AND EXIT!
                         if (type === 'recovery') {
                             Alert.alert("Password Reset", "Please set your new password now.");
-                            // Use replace to prevent going back to the sign-in screen
                             navigation.replace('PasswordUpdateScreen', {
                                 accessToken: accessToken, 
                                 refreshToken: refreshToken,
                             });
                             setIsVerifyingLink(false);
-                            return; // ✅ STOP EXECUTION HERE
+                            return;
                         }
 
-                        // --- SIGNUP Confirmation Flow (Only runs if type is NOT recovery) ---
-
-                        // Now that session is set, fetch user data for role based navigation (using Supabase client)
                         const { data: userData, error: userError } = await supabase.auth.getUser();
 
                         if (userError || !userData || !userData.user) {
                             console.error("User fetch error after signup:", userError);
-                            // Fallback to sign in screen if user details can't be fetched
                             setIsVerifyingLink(false);
                             return;
                         }
@@ -94,46 +80,38 @@ const SignInScreen = ({ navigation }) => {
                         const userRole = userData.user.user_metadata?.user_role; 
                         
                         if (userRole) {
-                            // Redirect to Dashboard for confirmed signup
                             navigation.replace(
                                 userRole === 'creator' ? 'CreatorDashboard' : 'FillerDashboard'
                             );
                             return;
                         }
                         
-                        // Fallback for successful signup confirmation
-                         navigation.replace('ProfileCompletionScreen'); // Assuming this is where users go after signup
-                         return; // Added return here for safety
+                        navigation.replace('ProfileCompletionScreen');
+                         return;
 
                     } catch (error) {
                         console.error("Deep Link Error:", error);
-                        // If any error, show the sign in screen
                     }
                 } 
             }
             setIsVerifyingLink(false);
         };
         
-        // Listener for when the app is already running and a link opens it
         const subscription = Linking.addEventListener('url', ({ url }) => {
             if (url) {
-                // Re-run the verification logic with the new URL
                 handleDeepLinkVerification();
             }
         });
 
-        // Initial check when the app launches via a deep link
         handleDeepLinkVerification();
         
-        // Cleanup listener
         return () => {
             subscription.remove();
         };
 
     }, [navigation]); 
 
-
-    // 🧠 LOGIC: Uses Supabase Auth REST API for manual login
+    // Manual Login
     async function signInWithEmail() {
         if (!email.trim() || !password) {
             Alert.alert('Error', 'Please enter both email and password.');
@@ -165,7 +143,6 @@ const SignInScreen = ({ navigation }) => {
                 const user = result.user; 
                 
                 if (user) {
-                    // 1. Manually save the FULL session object in the required key
                     const sessionObject = {
                         access_token: result.access_token,
                         refresh_token: result.refresh_token,
@@ -175,7 +152,6 @@ const SignInScreen = ({ navigation }) => {
                     };
                     await AsyncStorage.setItem('@supabase_session', JSON.stringify(sessionObject)); 
                     
-                    // 2. Set Session (to initialize Supabase Client locally)
                     const { error: setSessionError, data: sessionData } = await supabase.auth.setSession({
                         access_token: result.access_token,
                         refresh_token: result.refresh_token,
@@ -187,10 +163,8 @@ const SignInScreen = ({ navigation }) => {
                         setIsManualLoading(false);
                         return;
                     } else if (sessionData && sessionData.session) {
-                        // Update stored session with the official Supabase Client object (safer)
                         await AsyncStorage.setItem('@supabase_session', JSON.stringify(sessionData.session));
                     }
-
 
                     const userRole = user.user_metadata?.user_role; 
                     
@@ -200,7 +174,6 @@ const SignInScreen = ({ navigation }) => {
                             userRole === 'creator' ? 'CreatorDashboard' : 'FillerDashboard'
                         ); 
                     } else {
-                        // If no role found (e.g., first-time login after successful signup confirmation)
                         navigation.replace('ProfileCompletionScreen');
                     }
                 } else {
@@ -217,12 +190,7 @@ const SignInScreen = ({ navigation }) => {
 
     const isLoading = isManualLoading || isVerifyingLink;
 
-    // ----------------------------------------------------
-    // 🎨 JSX (UI)
-    // ----------------------------------------------------
-
     if (isVerifyingLink) {
-        // Show a loading screen while link is being processed
         return (
             <View style={[styles.container, styles.loadingOverlay]}>
                 <ActivityIndicator size="large" color="#FF8C00" />
@@ -233,13 +201,11 @@ const SignInScreen = ({ navigation }) => {
 
     return(
         <View style={styles.container}>
-            {/* Background Shapes: */}
             <View style={styles.topShape1} />
             <View style={styles.topShape2} />
             <View style={styles.bottomShape1} />
             <View style={styles.bottomShape2} />
 
-            {/* Main Content Area */}
             <View style={styles.content}>
                 
                 <View style={styles.logoContainer}>
@@ -255,7 +221,6 @@ const SignInScreen = ({ navigation }) => {
                     Please Enter your account details
                 </Text>
 
-                {/* Email Input */}
                 <TextInput
                     style={styles.input}
                     placeholder="Email"
@@ -267,13 +232,12 @@ const SignInScreen = ({ navigation }) => {
                     editable={!isLoading}
                 />
 
-                {/* Password Wrapper with Eye Icon */}
                 <View style={styles.passwordWrapper}>
                     <TextInput
                         style={[styles.input, styles.passwordInput]}
                         placeholder="Password"
                         placeholderTextColor="#999"
-                        secureTextEntry={!showPassword} 
+                        secureTextEntry={!showPassword}
                         value={password}
                         onChangeText={setPassword}
                         editable={!isLoading}
@@ -284,14 +248,13 @@ const SignInScreen = ({ navigation }) => {
                         disabled={isLoading}
                     >
                         <Ionicons 
-                            name={showPassword ? "eye-off" : "eye"} 
+                            name={showPassword ? "eye" : "eye-off"} 
                             size={24} 
                             color="#999" 
                         />
                     </TouchableOpacity>
                 </View>
 
-                {/* Checkbox and Forgot Password */}
                 <View style={styles.row}>
                     <TouchableOpacity
                         style={styles.checkboxContainer}
@@ -314,7 +277,6 @@ const SignInScreen = ({ navigation }) => {
                     </TouchableOpacity>
                 </View>
 
-                {/* Sign In Button with Gradient (UI Restored here) */}
                 <TouchableOpacity
                     onPress={signInWithEmail}
                     disabled={isLoading}
@@ -332,7 +294,6 @@ const SignInScreen = ({ navigation }) => {
                     </LinearGradient>
                 </TouchableOpacity>
 
-                {/* Don't have an account? Sign up */}
                 <View style={styles.signupContainer}>
                     <Text style={styles.signupText}>Don't have an account?</Text>
                     <TouchableOpacity
@@ -347,10 +308,6 @@ const SignInScreen = ({ navigation }) => {
         </View>
     );
 };
-
-// ----------------------------------------------------
-// 🎨 ADJUSTED STYLES (UI Restored)
-// ----------------------------------------------------
 
 const styles = StyleSheet.create({
 container: { 
@@ -415,27 +372,23 @@ content: {
     flex: 1,
     paddingHorizontal: 35,
     justifyContent: "center",
-    // 🎨 RESTORED MARGIN: Adjusted from -50 to 0 (ya thora kam) for better alignment
     marginTop: 0, 
     zIndex: 5,
 },
 logoContainer: { 
     alignItems: "center", 
-    // ✂️ Kept or slightly adjusted
     marginBottom: -15 
 },
 logoImage: {
     width: 150,
     height: 150,
     resizeMode: "contain",
-    // ✂️ Kept or slightly adjusted
     marginBottom: -15, 
 },
 logoWelcome: {
     fontSize: 30,
     fontWeight: "bold",
     color: "#333",
-    // ✂️ Kept or slightly adjusted
     marginTop: -25,
     marginBottom: 0,
 },
@@ -444,8 +397,7 @@ instructions: {
     color: "#666",
     textAlign: "center",
     marginTop: 5,
-    // ✂️ Kept or slightly adjusted
-    marginBottom: 20, // Increased a bit for spacing
+    marginBottom: 20,
 },
 passwordWrapper: {
     marginBottom: 10, 
@@ -518,7 +470,7 @@ forgotPassword: {
 },
 buttonWrapper: { 
     borderRadius: 10, 
-    marginBottom: 20, // Adjusted for better spacing
+    marginBottom: 20,
     elevation: 3 
 },
 gradientButton: { 
